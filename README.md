@@ -7,3 +7,4 @@ Run ssslide.py from inside the directory with screenshots and then view them ove
 ~/target/screenshots$ ssslide
 serving 7 images on http://1.2.3.4:8000
 ```
+use h and l or j and k to flip through them. 
