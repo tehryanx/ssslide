@@ -33,7 +33,8 @@ class StaticServer(BaseHTTPRequestHandler):
 				}
 
 				document.slider.src=images[0];
-				document.imagelabel.innerHTML=images[0];
+				document.getElementById('imagelabel').innerHTML=images[0];
+				document.title=images[0];
 			}
 			document.addEventListener("keypress", function onPress(event) {
 				if (event.key === "k" || event.key === "l") {
@@ -46,8 +47,8 @@ class StaticServer(BaseHTTPRequestHandler):
 		</script>
 	</head>
 	<body>
-		<img name="slider" style="height: 100%; width: auto;">
-		<span name="imagelabel"></span>
+		<div style="font-size:11px;" name="imagelabel" id="imagelabel"></div>
+		<img name="slider" style="width: 100%; height: auto;">
 	</body>
 </html>
 """
