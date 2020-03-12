@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import os, mimetypes
+import os, mimetypes, re
 from requests import get
 
 js_array = ""
@@ -9,10 +9,10 @@ js_array = ""
 class StaticServer(BaseHTTPRequestHandler):
 
 	def do_GET(self):
-
+		if len(re.findall("[^a-zA-Z0-9._-]", self.path)):
+			return
 		if self.path == '/':
 			# serve slideshow code.
-
 			html =  """
 <html>
 	<head>
