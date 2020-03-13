@@ -4,13 +4,16 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import os, mimetypes, re, signal, argparse
 from zipfile import ZipFile
 from requests import get
+import uuid, base64
 
 parser = argparse.ArgumentParser(description='Serve images from the current directory as a slideshow over http.', epilog='Happy hacking!')
 parser.add_argument('-p', '--port', type=int, default="8000", help="The port to listen on. Defaults to 8000")
 parser.add_argument('-z', '--zip', action="store_true", default=False, help="Zip all images and serve them at /zip")
 args = parser.parse_args()
+
 port=args.port
 zipflag=args.zip
+key = str(uuid.uuid1())
 
 js_array = ""
 
@@ -21,41 +24,56 @@ def sigint_handler(signum, frame):
 
 class StaticServer(BaseHTTPRequestHandler):
 
+
 	def do_GET(self):
-		if len(re.findall("[^a-zA-Z0-9._-]", self.path[1:])):
-			print("Bad chars detected in: {}".format(self.path))
+
+		if "?" in self.path:
+			path = self.path.split("?")[0]
+			param = self.path.split("?")[1]
+		else: 
 			return
 
-		if self.path == '/zip':
-			if zipflag:
-				collection = []
-				with os.scandir('.') as files:
-				        for f in files:
-				                if os.path.isfile(f.name):
-				                        if 'image' in mimetypes.guess_type(f.name)[0]:
-		                        		        collection.append(f.name)
-				zipObj = ZipFile('collection.zip', 'w')
+		if key not in param: 
+			self.send_response(403)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(b"Bad key: Access denied.")
+			return
 
-				for file in collection:
-					zipObj.write(file)
-				zipObj.close()
+		if len(re.findall("[^=?a-zA-Z0-9._-]", path[1:])):
+			print("Bad chars detected in: {}".format(path))
+			return
 
-				self.send_response(200)
-				self.send_header('Content-type', 'application/zip')
-				self.send_header('Content-disposition', 'attachment; filename="collection.zip')
-				self.end_headers()
-				with open('collection.zip', 'rb') as fh:
-					zip = fh.read()
-					self.wfile.write(zip)
-			else:
-				print ("Attempted to access zip but -z not set.")
-				self.send_response(403)
-				self.send_header('Content-type', 'text/html')
-				self.end_headers()
-				self.wfile.write(b"Attempted to access zip but -z not set.")
-				return
+			if path == '/zip':
+				if zipflag:
+					collection = []
+					with os.scandir('.') as files:
+					        for f in files:
+					                if os.path.isfile(f.name):
+					                        if 'image' in mimetypes.guess_type(f.name)[0]:
+			                        		        collection.append(f.name)
+					zipObj = ZipFile('collection.zip', 'w')
 
-		if self.path == '/':
+					for file in collection:
+						zipObj.write(file)
+					zipObj.close()
+
+					self.send_response(200)
+					self.send_header('Content-type', 'application/zip')
+					self.send_header('Content-disposition', 'attachment; filename="collection.zip')
+					self.end_headers()
+					with open('collection.zip', 'rb') as fh:
+						zip = fh.read()
+						self.wfile.write(zip)
+				else:
+					print ("Attempted to access zip but -z not set.")
+					self.send_response(403)
+					self.send_header('Content-type', 'text/html')
+					self.end_headers()
+					self.wfile.write(b"Attempted to access zip but -z not set.")
+					return
+
+		if path == '/':
 			# serve slideshow code.
 			html =  """
 <html>
@@ -101,7 +119,7 @@ class StaticServer(BaseHTTPRequestHandler):
 			self.end_headers()
 			self.wfile.write(bytes(html, 'utf8'))
 		else:
-			filename = os.path.abspath('.') + self.path
+			filename = os.path.abspath('.') + path
 			if os.path.isfile(filename):
 				mimetype = mimetypes.guess_type(filename)[0]
 				if 'image' not in mimetype:
@@ -120,6 +138,7 @@ class StaticServer(BaseHTTPRequestHandler):
 				self.end_headers()
 				self.wfile.write(b'404: Nothing here.')
 
+
 signal.signal(signal.SIGINT, sigint_handler)
 
 images = []
@@ -129,7 +148,8 @@ with os.scandir('.') as files:
 			if 'image' in mimetypes.guess_type(f.name)[0]:
 				images.append(f.name)
 
-js_array = "'"+"', '".join(images)+"'"
+delim="?key="+key+"','"
+js_array = "'" + delim.join(images) + "/?key="+key+"'"
 
 ip = get('https://icanhazip.com').text.strip()
 
@@ -144,8 +164,8 @@ header="""
                  \033[0m\033[94mtehryanx\033[0m
 """
 print(header)
-print("serving \033[94m{}\033[0m images on \033[92mhttp://{}\033[0m:\033[92m{}\033[0m".format(str(len(images)),ip,port))
+print("serving \033[94m{}\033[0m images on \033[92mhttp://{}\033[0m:\033[92m{}\033[0m/?\033[92mkey\033[0m=\033[92m{}\033[0m".format(str(len(images)),ip,port,key))
 if zipflag:
-	print("zip archive available at \033[92mhttp://{}\033[0m:\033[92m{}/zip\033[0m".format(ip,port))
+	print("zip archive available at \033[92mhttp://{}\033[0m:\033[92m{}/zip/\033[0m?\033[92mkey\033[0m=\033[92m{}\033[0m".format(ip,port,key))
 httpd = HTTPServer(('', port), StaticServer)
 httpd.serve_forever()
