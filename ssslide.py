@@ -31,6 +31,7 @@ class StaticServer(BaseHTTPRequestHandler):
 			path = self.path.split("?")[0]
 			param = self.path.split("?")[1]
 		else: 
+			print("No param.")
 			return
 
 		if key not in param: 
@@ -44,34 +45,35 @@ class StaticServer(BaseHTTPRequestHandler):
 			print("Bad chars detected in: {}".format(path))
 			return
 
-			if path == '/zip':
-				if zipflag:
-					collection = []
-					with os.scandir('.') as files:
-					        for f in files:
-					                if os.path.isfile(f.name):
-					                        if 'image' in mimetypes.guess_type(f.name)[0]:
-			                        		        collection.append(f.name)
-					zipObj = ZipFile('collection.zip', 'w')
+		if 'zip' in path:
+			print("FOUND ZIP.")
+			if zipflag:
+				collection = []
+				with os.scandir('.') as files:
+				        for f in files:
+				                if os.path.isfile(f.name):
+				                        if 'image' in mimetypes.guess_type(f.name)[0]:
+		                        		        collection.append(f.name)
+				zipObj = ZipFile('collection.zip', 'w')
 
-					for file in collection:
-						zipObj.write(file)
-					zipObj.close()
+				for file in collection:
+					zipObj.write(file)
+				zipObj.close()
 
-					self.send_response(200)
-					self.send_header('Content-type', 'application/zip')
-					self.send_header('Content-disposition', 'attachment; filename="collection.zip')
-					self.end_headers()
-					with open('collection.zip', 'rb') as fh:
-						zip = fh.read()
-						self.wfile.write(zip)
-				else:
-					print ("Attempted to access zip but -z not set.")
-					self.send_response(403)
-					self.send_header('Content-type', 'text/html')
-					self.end_headers()
-					self.wfile.write(b"Attempted to access zip but -z not set.")
-					return
+				self.send_response(200)
+				self.send_header('Content-type', 'application/zip')
+				self.send_header('Content-disposition', 'attachment; filename="collection.zip')
+				self.end_headers()
+				with open('collection.zip', 'rb') as fh:
+					zip = fh.read()
+					self.wfile.write(zip)
+			else:
+				print ("Attempted to access zip but -z not set.")
+				self.send_response(403)
+				self.send_header('Content-type', 'text/html')
+				self.end_headers()
+				self.wfile.write(b"Attempted to access zip but -z not set.")
+				return
 
 		if path == '/':
 			# serve slideshow code.
@@ -166,6 +168,6 @@ header="""
 print(header)
 print("serving \033[94m{}\033[0m images on \033[92mhttp://{}\033[0m:\033[92m{}\033[0m/?\033[92mkey\033[0m=\033[92m{}\033[0m".format(str(len(images)),ip,port,key))
 if zipflag:
-	print("zip archive available at \033[92mhttp://{}\033[0m:\033[92m{}/zip/\033[0m?\033[92mkey\033[0m=\033[92m{}\033[0m".format(ip,port,key))
+	print("zip archive available at \033[92mhttp://{}\033[0m:\033[92m{}/zip\033[0m?\033[92mkey\033[0m=\033[92m{}\033[0m".format(ip,port,key))
 httpd = HTTPServer(('', port), StaticServer)
 httpd.serve_forever()
