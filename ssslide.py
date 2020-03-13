@@ -1,16 +1,28 @@
 #!/usr/bin/env python3
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import os, mimetypes, re
+import os, mimetypes, re, signal, argparse
 from requests import get
 
+parser = argparse.ArgumentParser(description='Serve images from the current directory as a slideshow over http.', epilog='Happy hacking!')
+parser.add_argument('-p', '--port', type=int, default="8000", help="The port to listen on. Defaults to 8000")
+args = parser.parse_args()
+port=args.port
+
 js_array = ""
+
+def sigint_handler(signum, frame):
+	print("Received sigint. Exiting.")
+	exit()
+
 
 class StaticServer(BaseHTTPRequestHandler):
 
 	def do_GET(self):
-		if len(re.findall("[^a-zA-Z0-9._-]", self.path)):
+		if len(re.findall("[^a-zA-Z0-9._-]", self.path[1:])):
+			print("Bad chars detected in: {}".format(self.path))
 			return
+
 		if self.path == '/':
 			# serve slideshow code.
 			html =  """
@@ -76,6 +88,8 @@ class StaticServer(BaseHTTPRequestHandler):
 				self.end_headers()
 				self.wfile.write(b'404: Nothing here.')
 
+signal.signal(signal.SIGINT, sigint_handler)
+
 images = []
 with os.scandir('.') as files:
 	for f in files:
@@ -85,9 +99,19 @@ with os.scandir('.') as files:
 
 js_array = "'"+"', '".join(images)+"'"
 
-port = 8000
 ip = get('https://api.ipify.org').text
 
-print("serving {} images on http://{}:{}".format(str(len(images)),ip,port))
+
+
+header="""
+\033[92m              _ _     _
+  ___ ___ ___| (_) __| | ___
+ / __/ __/ __| | |/ _` |/ _ \\
+ \__ \__ \__ \ | | (_| |  __/
+ |___/___/___/_|_|\__,_|\___|
+                 \033[0m\033[94mtehryanx\033[0m
+"""
+print(header)
+print("serving \033[94m{}\033[0m images on \033[92mhttp://{}\033[0m:\033[92m{}\033[0m".format(str(len(images)),ip,port))
 httpd = HTTPServer(('', port), StaticServer)
 httpd.serve_forever()
